@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MultiPDF Export — InDesign Script</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #0a0a0a;
+    --white: #f5f2ed;
+    --cream: #ede9e2;
+    --accent: #e8440a;
+    --accent2: #f5a623;
+    --mid: #2a2a2a;
+    --muted: #6b6560;
+    --border: #2e2b27;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.6;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 70% 50%, rgba(232,68,10,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 20% 80%, rgba(245,166,35,0.06) 0%, transparent 50%);
+  }
+
+  .hero-lines {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 60px;
+    position: relative;
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+
+  .nav-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 2px;
+  }
+
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 60px;
+    position: relative;
+    z-index: 10;
+    max-width: 900px;
+  }
+
+  .hero-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    width: 32px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(72px, 10vw, 140px);
+    line-height: 0.92;
+    letter-spacing: 2px;
+    color: var(--white);
+    margin-bottom: 36px;
+  }
+
+  h1 span {
+    color: var(--accent);
+    display: block;
+  }
+
+  .hero-desc {
+    font-size: 18px;
+    line-height: 1.7;
+    color: #a09890;
+    max-width: 540px;
+    margin-bottom: 48px;
+  }
+
+  .hero-cta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 16px 32px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  }
+
+  .btn-primary:hover { background: #ff5520; transform: translateY(-2px); }
+
+  .btn-secondary {
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 16px 32px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover { border-color: var(--white); color: var(--white); }
+
+  .hero-stats {
+    display: flex;
+    gap: 0;
+    border-top: 1px solid var(--border);
+    padding: 32px 60px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .stat {
+    flex: 1;
+    padding: 0 40px 0 0;
+    border-right: 1px solid var(--border);
+  }
+
+  .stat:last-child { border-right: none; padding-left: 40px; }
+  .stat:first-child { padding-left: 0; }
+
+  .stat-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ── SECTION BASE ── */
+  section { padding: 120px 60px; }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(40px, 5vw, 64px);
+    letter-spacing: 2px;
+    line-height: 1;
+    margin-bottom: 20px;
+  }
+
+  /* ── FEATURES ── */
+  .features { background: var(--black); }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-top: 64px;
+  }
+
+  .feature-card {
+    background: var(--black);
+    padding: 48px 40px;
+    position: relative;
+    transition: background 0.3s;
+    cursor: default;
+  }
+
+  .feature-card:hover { background: #111; }
+
+  .feature-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--accent);
+    transition: width 0.4s ease;
+  }
+
+  .feature-card:hover::after { width: 100%; }
+
+  .feature-icon {
+    font-size: 32px;
+    margin-bottom: 24px;
+    display: block;
+  }
+
+  .feature-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    color: var(--border);
+    position: absolute;
+    top: 20px;
+    right: 28px;
+    line-height: 1;
+    user-select: none;
+    transition: color 0.3s;
+  }
+
+  .feature-card:hover .feature-num { color: #1e1e1e; }
+
+  .feature-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--white);
+    margin-bottom: 12px;
+  }
+
+  .feature-desc {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  /* ── HOW IT WORKS ── */
+  .how { background: #0d0d0d; }
+
+  .steps {
+    margin-top: 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr;
+    gap: 40px;
+    align-items: start;
+    padding: 48px 0;
+    border-bottom: 1px solid var(--border);
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    color: var(--border);
+    line-height: 1;
+    padding-top: 4px;
+  }
+
+  .step-content h3 {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--white);
+    margin-bottom: 12px;
+  }
+
+  .step-content p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  .step-visual {
+    background: var(--mid);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 24px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: #8a8480;
+    line-height: 1.8;
+  }
+
+  .step-visual .hl { color: var(--accent); }
+  .step-visual .hl2 { color: var(--accent2); }
+  .step-visual .dim { color: #444; }
+
+  /* ── UI PREVIEW ── */
+  .preview { background: var(--black); }
+
+  .ui-mockup {
+    margin-top: 64px;
+    background: #1a1917;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    max-width: 560px;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px var(--border);
+    position: relative;
+  }
+
+  .mockup-titlebar {
+    background: #111;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r { background: #e74c3c; }
+  .dot-y { background: #f39c12; }
+  .dot-g { background: #2ecc71; }
+
+  .mockup-title-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 8px;
+    letter-spacing: 1px;
+  }
+
+  .mockup-body { padding: 24px; }
+
+  .mock-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .mock-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    width: 100px;
+    flex-shrink: 0;
+  }
+
+  .mock-input {
+    flex: 1;
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--white);
+    border-radius: 2px;
+  }
+
+  .mock-btn-small {
+    background: #222;
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  .mock-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  .mock-panel-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .mock-textarea {
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    padding: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    line-height: 2;
+    border-radius: 2px;
+    margin-bottom: 10px;
+  }
+
+  .mock-textarea .line { display: block; }
+  .mock-textarea .line.typed { color: var(--accent2); }
+  .mock-textarea .line.full-kw { color: var(--accent); }
+  .mock-textarea .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--white);
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .mock-preview-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #4a9;
+    padding: 6px 0;
+  }
+
+  .mock-check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .mock-check {
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--border);
+    background: #0d0d0d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .mock-check-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .mock-affix-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .mock-affix-item { flex: 1; }
+
+  .mock-affix-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .mock-btn-export {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    padding: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--white);
+    cursor: pointer;
+    text-align: center;
+  }
+
+  /* Progress mockup */
+  .mock-progress-wrap {
+    margin-top: 32px;
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    max-width: 420px;
+  }
+
+  .mock-prog-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+
+  .mock-prog-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .mock-prog-bar-wrap {
+    height: 8px;
+    background: #222;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  .mock-prog-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    width: 60%;
+    animation: progAnim 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes progAnim { from { width: 20% } to { width: 85% } }
+
+  .mock-prog-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* Two-col layout for preview section */
+  .preview-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+    margin-top: 64px;
+  }
+
+  .preview-text h2 { margin-bottom: 24px; }
+
+  .preview-text p {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  /* ── SETTINGS ── */
+  .settings-section { background: #0d0d0d; }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 64px;
+  }
+
+  .setting-item {
+    border: 1px solid var(--border);
+    padding: 32px;
+    position: relative;
+    transition: border-color 0.3s;
+  }
+
+  .setting-item:hover { border-color: var(--accent); }
+
+  .setting-key {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .setting-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--white);
+    margin-bottom: 8px;
+  }
+
+  .setting-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  /* ── INSTALL ── */
+  .install { background: var(--black); }
+
+  .install-steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-top: 64px;
+  }
+
+  .install-step {
+    background: var(--black);
+    padding: 40px 32px;
+    position: relative;
+  }
+
+  .install-step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 56px;
+    color: var(--border);
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+
+  .install-step h4 {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--white);
+    margin-bottom: 10px;
+  }
+
+  .install-step p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .code-tag {
+    display: inline-block;
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin-top: 8px;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+
+  .footer-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* ── ANIMATIONS ── */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Stagger delays */
+  .fade-in:nth-child(1) { transition-delay: 0s; }
+  .fade-in:nth-child(2) { transition-delay: 0.1s; }
+  .fade-in:nth-child(3) { transition-delay: 0.2s; }
+  .fade-in:nth-child(4) { transition-delay: 0.3s; }
+  .fade-in:nth-child(5) { transition-delay: 0.4s; }
+  .fade-in:nth-child(6) { transition-delay: 0.5s; }
+
+  /* Hero entrance */
+  .hero-eyebrow { animation: fadeUp 0.8s ease 0.1s both; }
+  h1 { animation: fadeUp 0.8s ease 0.2s both; }
+  .hero-desc { animation: fadeUp 0.8s ease 0.35s both; }
+  .hero-cta { animation: fadeUp 0.8s ease 0.5s both; }
+  .hero-stats { animation: fadeUp 0.8s ease 0.6s both; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(32px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 900px) {
+    nav, section, footer { padding-left: 24px; padding-right: 24px; }
+    .features-grid { grid-template-columns: 1fr; }
+    .install-steps { grid-template-columns: 1fr 1fr; }
+    .preview-layout { grid-template-columns: 1fr; }
+    .settings-grid { grid-template-columns: 1fr; }
+    .step { grid-template-columns: 60px 1fr; }
+    .step-visual { display: none; }
+    .hero-stats { flex-wrap: wrap; gap: 20px; }
+    .stat { border-right: none; flex: 0 0 40%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-lines"></div>
+
+  <nav>
+    <div class="nav-logo">MULTIPDF</div>
+    <div class="nav-tag">InDesign Script · JSX</div>
+  </nav>
+
+  <div class="hero-content">
+    <div class="hero-eyebrow">Adobe InDesign Script</div>
+    <h1>Multi<span>PDF</span>Export</h1>
+    <p class="hero-desc">
+      InDesign belgelerini tek tıkla sınırsız sayıda PDF parçasına bölün.
+      Sayfa aralıklarını, ön ek ve son ekleri, kayıt klasörünü — her şeyi
+      tek bir arayüzden yönetin.
+    </p>
+    <div class="hero-cta">
+      <a href="#kurulum" class="btn-primary">
+        ↓ Kuruluma Git
+      </a>
+      <a href="#ozellikler" class="btn-secondary">
+        Özellikleri İncele →
+      </a>
+    </div>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-num">∞</div>
+      <div class="stat-label">PDF Parçası</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">1</div>
+      <div class="stat-label">Tıkla Export</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">7</div>
+      <div class="stat-label">Kalıcı Ayar</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">0</div>
+      <div class="stat-label">Tekrar İşlem</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section class="features" id="ozellikler">
+  <div class="section-label">Özellikler</div>
+  <h2>Her ihtiyacınız<br>düşünüldü</h2>
+
+  <div class="features-grid">
+    <div class="feature-card fade-in">
+      <span class="feature-num">01</span>
+      <span class="feature-icon">📄</span>
+      <div class="feature-title">Çoklu Sayfa Aralığı</div>
+      <div class="feature-desc">Her satıra bir aralık yazın — <code style="color:var(--accent2);font-family:'DM Mono',monospace">1-10</code>, <code style="color:var(--accent2);font-family:'DM Mono',monospace">11-20</code>, <code style="color:var(--accent2);font-family:'DM Mono',monospace">21-30</code> — sınırsız parça, tek export işlemi.</div>
+    </div>
+
+    <div class="feature-card fade-in">
+      <span class="feature-num">02</span>
+      <span class="feature-icon">📦</span>
+      <div class="feature-title">Full PDF Desteği</div>
+      <div class="feature-desc">Aralıklara ek olarak tüm belgeyi de tek tıkla export edin. <code style="color:var(--accent);font-family:'DM Mono',monospace">full</code> yazın ya da onay kutusunu işaretleyin.</div>
+    </div>
+
+    <div class="feature-card fade-in">
+      <span class="feature-num">03</span>
+      <span class="feature-icon">✏️</span>
+      <div class="feature-title">Ön Ek / Son Ek</div>
+      <div class="feature-desc">Tüm dosya adlarına otomatik önek ve sonek ekleyin. <code style="color:var(--accent2);font-family:'DM Mono',monospace">BASKI_Katalog_1-10_v2.pdf</code> gibi profesyonel adlandırma.</div>
+    </div>
+
+    <div class="feature-card fade-in">
+      <span class="feature-num">04</span>
+      <span class="feature-icon">💾</span>
+      <div class="feature-title">Kalıcı Ayarlar</div>
+      <div class="feature-desc">Tüm ayarlarınız bir JSON dosyasına kaydedilir. Bilgisayarı kapatıp açsanız bile son kullandığınız aralıklar, klasör ve seçenekler geri gelir.</div>
+    </div>
+
+    <div class="feature-card fade-in">
+      <span class="feature-num">05</span>
+      <span class="feature-icon">📊</span>
+      <div class="feature-title">Canlı Progress Bar</div>
+      <div class="feature-desc">Export sırasında hangi dosyanın kaydedildiğini gerçek zamanlı görün. Animasyonlu ilerleme çubuğu ve tamamlanma bildirimi.</div>
+    </div>
+
+    <div class="feature-card fade-in">
+      <span class="feature-num">06</span>
+      <span class="feature-icon">📁</span>
+      <div class="feature-title">Klasör Otomatik Açılır</div>
+      <div class="feature-desc">Export tamamlanınca kayıt klasörü otomatik açılır. Dosyalarınızı bulmak için zaman kaybetmezsiniz.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ── -->
+<section class="how" id="nasil-calisir">
+  <div class="section-label">Nasıl Çalışır</div>
+  <h2>Üç adımda<br>tüm PDF'ler hazır</h2>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-content">
+        <h3>Aralıkları Girin</h3>
+        <p>Sayfa aralıklarını metin kutusuna alt alta yazın. Her satır ayrı bir PDF dosyası olur. Boş satırlar otomatik atlanır. <code style="color:var(--accent);font-family:'DM Mono',monospace">full</code> yazarak tüm belgeyi de listeye ekleyebilirsiniz.</p>
+      </div>
+      <div class="step-visual">
+        <span class="hl2">1-10</span><br>
+        <span class="hl2">11-20</span><br>
+        <span class="hl2">21-30</span><br>
+        <span class="hl">full</span><br>
+        <span class="dim">───────────────</span><br>
+        <span style="color:#4a9">✓ 4 adet PDF oluşturulacak</span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-content">
+        <h3>Ayarları Belirleyin</h3>
+        <p>PDF preset seçin, kayıt klasörünü belirleyin, ön ek / son ek ekleyin. Tüm bu ayarlar bir sonraki kullanımda sizi bekler.</p>
+      </div>
+      <div class="step-visual">
+        <span class="dim">Preset    : </span><span class="hl2">[Press Quality]</span><br>
+        <span class="dim">Klasör    : </span><span style="color:#8a8">~/Desktop/PDF</span><br>
+        <span class="dim">Ön Ek     : </span><span class="hl2">BASKI_</span><br>
+        <span class="dim">Son Ek    : </span><span class="hl2">_v2</span><br>
+        <span class="dim">───────────────</span><br>
+        <span class="dim">Sonuç     : </span><span class="hl">BASKI_Katalog_1-10_v2.pdf</span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-content">
+        <h3>Export Et & İzleyin</h3>
+        <p>Butona basın. Progress penceresi açılır, hangi dosyanın kaydedildiğini gerçek zamanlı görürsünüz. Tamamlanınca klasör otomatik açılır.</p>
+      </div>
+      <div class="step-visual">
+        <span class="hl">Kaydediliyor: BASKI_Katalog_1-10_v2.pdf</span><br>
+        <span class="dim">Sayfa 1 - 10  (1. dosya)</span><br>
+        <span class="dim">───────────────</span><br>
+        <span class="hl2">████████░░░░░░░░</span>  <span class="dim">1 / 4</span><br>
+        <span class="dim">───────────────</span><br>
+        <span style="color:#4a9">✓ Tamamlandı! Klasör açılıyor...</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── UI PREVIEW ── -->
+<section class="preview" id="arayuz">
+  <div class="preview-layout">
+    <div class="preview-text">
+      <div class="section-label">Arayüz</div>
+      <h2>Sade,<br>işlevsel<br>tasarım</h2>
+      <p>InDesign'ın kendi ScriptUI motoru ile oluşturulan native arayüz. Ek kurulum gerektirmez, uygulamaya entegre çalışır.</p>
+      <p>Yazdıkça canlı önizleme güncellenir, kaç PDF oluşacağını ve örnek dosya adını anında görürsünüz.</p>
+      <p>Export sırasında ayrı bir progress penceresi açılır — ana pencereyi kapatır, export'u izlemenize olanak tanır.</p>
+    </div>
+
+    <div>
+      <!-- Ana Pencere Mockup -->
+      <div class="ui-mockup">
+        <div class="mockup-titlebar">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <span class="mockup-title-text">Multi PDF Exporter</span>
+        </div>
+        <div class="mockup-body">
+          <div class="mock-row">
+            <span class="mock-label">PDF Preset:</span>
+            <div class="mock-input">[Press Quality] ▾</div>
+          </div>
+          <div class="mock-row">
+            <span class="mock-label">Kayıt Klasörü:</span>
+            <div class="mock-input" style="color:var(--muted);font-size:11px">/Users/ridwa/Desktop/PDF_Output</div>
+            <div class="mock-btn-small">Seç...</div>
+          </div>
+
+          <div class="mock-divider"></div>
+          <div class="mock-panel-title">Sayfa Aralıkları</div>
+
+          <div class="mock-textarea">
+            <span class="line typed">1-10</span>
+            <span class="line typed">11-20</span>
+            <span class="line typed">21-30</span>
+            <span class="line full-kw">full<span class="cursor"></span></span>
+          </div>
+          <div class="mock-preview-text">✓ 4 adet PDF oluşturulacak. Ör: Katalog_1-10.pdf</div>
+
+          <div class="mock-divider"></div>
+
+          <div class="mock-check-row">
+            <div class="mock-check">✓</div>
+            <span class="mock-check-label">Export sonunda kayıt klasörünü aç</span>
+          </div>
+          <div class="mock-check-row">
+            <div class="mock-check">✓</div>
+            <span class="mock-check-label">Aralıkların yanı sıra tam belgeyi de export et (_full.pdf)</span>
+          </div>
+
+          <div class="mock-divider"></div>
+          <div class="mock-panel-title">Ön Ek / Son Ek (opsiyonel)</div>
+          <div class="mock-affix-row">
+            <div class="mock-affix-item">
+              <div class="mock-affix-label">Ön Ek:</div>
+              <div class="mock-input">BASKI_</div>
+            </div>
+            <div class="mock-affix-item">
+              <div class="mock-affix-label">Son Ek:</div>
+              <div class="mock-input">_v2</div>
+            </div>
+          </div>
+
+          <div class="mock-btn-export">PDF'leri Oluştur →</div>
+        </div>
+      </div>
+
+      <!-- Progress Mockup -->
+      <div class="mock-progress-wrap">
+        <div class="mockup-titlebar" style="margin: -24px -24px 20px -24px; border-radius: 4px 4px 0 0;">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <span class="mockup-title-text">PDF Export Yapılıyor...</span>
+        </div>
+        <div class="mock-prog-title">Kaydediliyor: BASKI_Katalog_11-20_v2.pdf</div>
+        <div class="mock-prog-sub">Sayfa 11 - 20  (2. dosya)</div>
+        <div class="mock-prog-bar-wrap">
+          <div class="mock-prog-bar-fill"></div>
+        </div>
+        <div class="mock-prog-count">2 / 4</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SETTINGS ── -->
+<section class="settings-section" id="ayarlar">
+  <div class="section-label">Kalıcı Ayarlar</div>
+  <h2>Bir kez ayarla,<br>hep hatırlasın</h2>
+
+  <div class="settings-grid">
+    <div class="setting-item fade-in">
+      <div class="setting-key">"ranges"</div>
+      <div class="setting-name">Sayfa Aralıkları</div>
+      <div class="setting-desc">Son kullandığınız aralıklar kaydedilir. Scripti her açtığınızda aynı aralıklar hazır gelir.</div>
+    </div>
+    <div class="setting-item fade-in">
+      <div class="setting-key">"preset"</div>
+      <div class="setting-name">PDF Preset</div>
+      <div class="setting-desc">Seçtiğiniz PDF kalite presetini hatırlar. Tekrar seçmenize gerek kalmaz.</div>
+    </div>
+    <div class="setting-item fade-in">
+      <div class="setting-key">"folder"</div>
+      <div class="setting-name">Kayıt Klasörü</div>
+      <div class="setting-desc">Son kayıt klasörünü hatırlar. Her seferinde aynı klasörü aramak zorunda kalmazsınız.</div>
+    </div>
+    <div class="setting-item fade-in">
+      <div class="setting-key">"prefix" / "suffix"</div>
+      <div class="setting-name">Ön Ek / Son Ek</div>
+      <div class="setting-desc">Dosya adı ön eki ve son eki kalıcı olarak saklanır. Versiyon numaraları ve etiketler korunur.</div>
+    </div>
+    <div class="setting-item fade-in">
+      <div class="setting-key">"openFolder"</div>
+      <div class="setting-name">Klasörü Aç</div>
+      <div class="setting-desc">Export sonrası klasörün açılıp açılmayacağına dair tercih kaydedilir.</div>
+    </div>
+    <div class="setting-item fade-in">
+      <div class="setting-key">"exportFull"</div>
+      <div class="setting-name">Full PDF</div>
+      <div class="setting-desc">Tam belge exportu onay kutusunun durumu hatırlanır. Varsayılan olarak aktif gelir.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:40px; padding:28px 32px; border:1px solid var(--border); border-left: 3px solid var(--accent); max-width: 600px;">
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">Ayar Dosyası Konumu</div>
+    <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--muted)">Script ile aynı klasörde <span style="color:var(--accent2)">MultiPDF_Settings.json</span> olarak oluşturulur. Scripti taşırsanız yanındaki JSON dosyasını da taşıyın.</div>
+  </div>
+</section>
+
+<!-- ── INSTALL ── -->
+<section class="install" id="kurulum">
+  <div class="section-label">Kurulum</div>
+  <h2>Dört adımda<br>hazır</h2>
+
+  <div class="install-steps">
+    <div class="install-step fade-in">
+      <div class="install-step-num">01</div>
+      <h4>Dosyayı İndir</h4>
+      <p><code style="color:var(--accent2);font-family:'DM Mono',monospace">MultiPDF_Export.jsx</code> dosyasını indirin.</p>
+    </div>
+
+    <div class="install-step fade-in">
+      <div class="install-step-num">02</div>
+      <h4>Scripts Klasörüne Taşı</h4>
+      <p>InDesign'da <strong>Window → Utilities → Scripts</strong> panelini açın. <em>User</em> klasörüne sağ tıklayıp <em>Reveal in Finder / Explorer</em> seçin. Dosyayı oraya kopyalayın.</p>
+      <div class="code-tag">User Scripts Panel</div>
+    </div>
+
+    <div class="install-step fade-in">
+      <div class="install-step-num">03</div>
+      <h4>Belgenizi Açın</h4>
+      <p>Çalışmak istediğiniz InDesign belgesini açın. Script, aktif belge üzerinde çalışır.</p>
+    </div>
+
+    <div class="install-step fade-in">
+      <div class="install-step-num">04</div>
+      <h4>Scripti Çalıştırın</h4>
+      <p>Scripts panelinde <code style="color:var(--accent2);font-family:'DM Mono',monospace">MultiPDF_Export.jsx</code> dosyasına çift tıklayın. Arayüz açılır, hazırsınız.</p>
+      <div class="code-tag">Çift Tıkla → Çalıştır</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">MULTIPDF</div>
+  <div class="footer-text">Adobe InDesign ScriptUI · JSX · v1.0</div>
+  <div class="footer-text">InDesign 2024 / 2025 / 2026 ile test edildi</div>
+</footer>
+
+<script>
+  // Intersection Observer for animations
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.fade-in, .step').forEach(el => observer.observe(el));
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+</body>
+</html>
